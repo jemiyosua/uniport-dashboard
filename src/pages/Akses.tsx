@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Ikon } from '../components/Ikon';
 import type { HasilAkses } from '../logika/akses';
 
@@ -51,8 +52,38 @@ export function AksesGagal({ alasan }: { alasan: Gagal }) {
         {alasan === 'tak-terjangkau' && (
           <button type="button" className="tombol utama" onClick={() => window.location.reload()}>Muat ulang</button>
         )}
+        {import.meta.env.DEV && alasan !== 'tak-terjangkau' && <TautanPeragaan />}
       </div>
       <p className="login-kaki">Rahasia internal · Asuransi Sinar Mas</p>
+    </div>
+  );
+}
+
+interface Contoh { label: string; ket: string; url: string }
+
+/**
+ * Khusus dev server: tautan peragaan keempat portal dari GET /api/akses/contoh (vite.config.ts).
+ * Tidak ikut ke build — di produksi tautan dibagikan administrator lewat `npm run link`.
+ */
+function TautanPeragaan() {
+  const [daftar, setDaftar] = useState<Contoh[] | null>(null);
+  useEffect(() => {
+    fetch('/api/akses/contoh', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d: Contoh[]) => setDaftar(d))
+      .catch(() => setDaftar([]));
+  }, []);
+  if (!daftar?.length) return null;
+  return (
+    <div className="akses-peragaan">
+      <p className="teks-redup"><strong>Mode pengembangan</strong> · buka portal sebagai:</p>
+      <ul>
+        {daftar.map((c) => (
+          <li key={c.label}>
+            <a className="tombol sekunder" href={c.url}><Ikon nama="shield" ukuran={16} /> {c.label}<small className="teks-redup">{c.ket}</small></a>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

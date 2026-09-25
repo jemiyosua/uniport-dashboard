@@ -16,10 +16,10 @@ const CAKUPAN_PORTAL: Record<Peran, string> = {
 };
 
 export function Topbar({
-  peran, namaUnit, akar, onBuka, tema, onTema, mendesak, onMendesak, onBantuan, onMenu,
+  peran, namaUnit, akar, onBuka, bisaCari, tema, onTema, mendesak, onMendesak, onBantuan, onMenu,
 }: {
   peran: Peran; namaUnit: string;
-  akar: Cakupan; onBuka: (c: Cakupan) => void; tema: 'terang' | 'gelap'; onTema: () => void;
+  akar: Cakupan; onBuka: (c: Cakupan) => void; bisaCari: boolean; tema: 'terang' | 'gelap'; onTema: () => void;
   mendesak: number; onMendesak: () => void; onBantuan: () => void; onMenu: () => void;
 }) {
   const [q, setQ] = useState('');
@@ -37,8 +37,7 @@ export function Topbar({
     document.addEventListener('keydown', tombol);
     return () => { document.removeEventListener('mousedown', klik); document.removeEventListener('keydown', tombol); };
   }, [profilTerbuka]);
-  const hasil = fokus ? cari(q, akar) : [];
-  const bisaCari = akar.tingkat !== 'mo';
+  const hasil = fokus && bisaCari ? cari(q, akar) : [];
 
   useEffect(() => {
     const f = (e: KeyboardEvent) => {

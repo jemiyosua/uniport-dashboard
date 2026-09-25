@@ -5,11 +5,11 @@ import { periksaAkses, type Akses, type HasilAkses } from './logika/akses';
 import { AksesGagal, MemeriksaAkses } from './pages/Akses';
 
 /**
- * Akses lewat tautan terenkripsi (?akses=…) SEMENTARA DIMATIKAN: URL dibuka seperti biasa dan
- * langsung masuk sebagai portal Direksi. Nyalakan lagi dengan VITE_AKSES_TAUTAN=aktif di .env
- * (lalu jalankan `npm run api`); seluruh alurnya masih ada di logika/akses.ts & tools/.
+ * Portal dibuka lewat tautan terenkripsi (?akses=…) yang menentukan peran & unit pengguna.
+ * VITE_AKSES_TAUTAN=mati → URL dibuka seperti biasa dan langsung masuk sebagai portal Direksi
+ * (hanya untuk pengembangan).
  */
-const PAKAI_TAUTAN = import.meta.env.VITE_AKSES_TAUTAN === 'aktif';
+const PAKAI_TAUTAN = import.meta.env.VITE_AKSES_TAUTAN !== 'mati';
 const AKSES_BAWAAN: Akses = { peran: 'direksi', unitId: NASIONAL.id, akar: NASIONAL };
 
 export function Akar() {

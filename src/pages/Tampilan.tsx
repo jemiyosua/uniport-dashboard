@@ -18,7 +18,7 @@ export interface PropsTampilan {
 
 /**
  * Satu susunan halaman untuk semua portal & semua tingkat filter (Nasional s.d. satu MO).
- * Akses halaman tidak lagi dibedakan per peran karena portal tidak lagi dibuka lewat tautan terenkripsi.
+ * Halaman mana yang boleh dibuka tiap peran diatur logika/izin.ts (disaring di App).
  */
 export function Tampilan(p: PropsTampilan) {
   switch (p.halaman) {

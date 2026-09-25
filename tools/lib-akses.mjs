@@ -52,3 +52,61 @@ export function dekrip(token, kunci) {
   if (typeof isi.exp !== 'number' || isi.exp * 1000 < Date.now()) throw new Error('token kedaluwarsa');
   return { peran: isi.p, unitId: isi.u, exp: isi.exp };
 }
+
+/**
+ * Unit contoh per portal (lihat PERSONA di src/data/sumber.ts):
+ * Nasional, Kantor Wilayah 1, Cabang Samarinda, Novita Lubis.
+ */
+export const CONTOH_PORTAL = [
+  { label: 'Direksi', ket: 'Nasional', peran: 'direksi', unitId: 'NAS' },
+  { label: 'Pemimpin Wilayah', ket: 'Kantor Wilayah 1', peran: 'pemimpin-wilayah', unitId: 'KW1' },
+  { label: 'Pimpinan Cabang', ket: 'Cabang Samarinda', peran: 'pimpinan-cabang', unitId: 'KW3-C04' },
+  { label: 'Marketing Officer', ket: 'Novita Lubis', peran: 'marketing-officer', unitId: 'MO0561' },
+];
+
+/** Tautan portal `<dasar>?akses=<token>` yang berlaku `hari` hari. */
+export function buatTautan(peran, unitId, hari, dasar, kunci) {
+  const token = enkrip({ p: peran, u: unitId, exp: Math.floor(Date.now() / 1000) + Number(hari) * 86400 }, kunci);
+  const url = new URL(dasar);
+  url.searchParams.set('akses', token);
+  return url.toString();
+}
+
+/**
+ * Penangan POST /api/akses/dekrip untuk server Node biasa maupun middleware dev server Vite.
+ *   body: { "token": "<token dari tautan>" }
+ *   200 → { "peran": "...", "unitId": "...", "exp": 1790000000 }
+ *   401 → { "galat": "..." } bila token rusak, palsu, atau kedaluwarsa.
+ * `asal` = daftar origin yang boleh memanggil langsung (CORS); kosong = hanya dari origin yang sama.
+ */
+export function layaniDekrip(req, res, kunci, asal = []) {
+  const origin = req.headers.origin;
+  const kirim = (kode, isi) => {
+    const h = { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' };
+    if (origin && asal.includes(origin)) Object.assign(h, { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' });
+    res.writeHead(kode, h);
+    res.end(JSON.stringify(isi));
+  };
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, asal.includes(origin) ? {
+      'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Methods': 'POST', 'Access-Control-Allow-Headers': 'Content-Type', Vary: 'Origin',
+    } : {});
+    return res.end();
+  }
+  if (req.method !== 'POST') return kirim(405, { galat: 'metode tidak diizinkan' });
+
+  let isi = '';
+  req.on('data', (c) => { isi += c; if (isi.length > 4096) req.destroy(); });
+  req.on('end', () => {
+    try {
+      const { token } = JSON.parse(isi || '{}');
+      if (!token) return kirim(400, { galat: 'token wajib diisi' });
+      kirim(200, dekrip(token, kunci));
+    } catch (e) {
+      // Alasan rinci hanya di log server; klien cukup tahu tautannya tidak berlaku.
+      const t = (() => { try { return String(JSON.parse(isi).token ?? ''); } catch { return ''; } })();
+      console.warn(`[akses] ${new Date().toLocaleTimeString('id-ID')} ditolak: ${e.message} (panjang token ${t.length}, awal ${t.slice(0, 6)}…)`);
+      kirim(401, { galat: 'tautan tidak valid atau sudah kedaluwarsa' });
+    }
+  });
+}
