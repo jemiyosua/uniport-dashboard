@@ -1,6 +1,14 @@
 // Klien API backend Go (Matrix Distribution). Dipanggil lewat '/api-go' — proxy dev server
 // meneruskannya ke URL_GO di .env, jadi alamat server internal tidak tertulis di kode browser.
+import { DUMMY_CABANG, DUMMY_KANWIL, DUMMY_MARKETING } from '../data/dummy';
+
 const DASAR = (import.meta.env.VITE_API_GO ?? '/api-go').replace(/\/$/, '');
+
+/**
+ * Bawaan: daftar wilayah, cabang, dan MO diambil dari src/data/dummy.ts, tanpa memanggil
+ * backend sama sekali. VITE_SUMBER_DATA=api → pakai API backend Matrix (URL_GO).
+ */
+export const PAKAI_DUMMY = import.meta.env.VITE_SUMBER_DATA !== 'api';
 
 const BATAS_WAKTU_MS = 8000;
 
@@ -42,7 +50,7 @@ function normalOpsi(data: unknown, endpoint: string): { kode: string; nama: stri
 
 /** GET matrix/kanwils → daftar wilayah (termasuk unit non-wilayah seperti Agency Development). */
 export async function ambilKanwil(sinyal?: AbortSignal): Promise<KanwilApi[]> {
-  const data = await ambil<unknown>('matrix/kanwils', { sinyal });
+  const data = PAKAI_DUMMY ? DUMMY_KANWIL : await ambil<unknown>('matrix/kanwils', { sinyal });
   return normalOpsi(data, 'matrix/kanwils').map((x) => ({ code: x.kode, label: x.nama }));
 }
 
@@ -54,7 +62,7 @@ export interface CabangApi { kodeApi: string; nama: string }
  * Backend menolak field lain ("invalid JSON body") dan kode di luar daftar kanwils.
  */
 export async function ambilCabang(kodeKanwil: string, sinyal?: AbortSignal): Promise<CabangApi[]> {
-  const data = await ambil<unknown>('matrix/branches', { sinyal, body: { kanwil: kodeKanwil } });
+  const data = PAKAI_DUMMY ? DUMMY_CABANG[kodeKanwil] ?? [] : await ambil<unknown>('matrix/branches', { sinyal, body: { kanwil: kodeKanwil } });
   return normalOpsi(data, 'matrix/branches').map((x) => ({ kodeApi: x.kode, nama: x.nama ?? x.kode }));
 }
 
@@ -63,7 +71,7 @@ export interface MarketingApi { kodeApi: string; nama: string }
 
 /** POST matrix/marketings, body { "branch": "<value dari matrix/branches>" }. Cabang tanpa MO → []. */
 export async function ambilMarketing(kodeCabang: string, sinyal?: AbortSignal): Promise<MarketingApi[]> {
-  const data = await ambil<unknown>('matrix/marketings', { sinyal, body: { branch: kodeCabang } });
+  const data = PAKAI_DUMMY ? DUMMY_MARKETING[kodeCabang] ?? [] : await ambil<unknown>('matrix/marketings', { sinyal, body: { branch: kodeCabang } });
   return normalOpsi(data, 'matrix/marketings').map((x) => ({ kodeApi: x.kode, nama: x.nama ?? x.kode }));
 }
 
@@ -80,7 +88,7 @@ export interface ParameterFilterApi {
   kanwil?: string;   // kode dari matrix/kanwils
   cabang?: string;
   mo?: string;      // value dari matrix/marketings
-  channel?: string;  // 'Direct' | 'Captive' | nama sub-channel
+  channel?: string[]; // sub-channel yang aktif; kosong/undefined = semua
   bulanDari: number; // 1–12
   bulanSampai: number;
   tahun: number;

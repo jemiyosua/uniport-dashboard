@@ -35,9 +35,26 @@ export interface Prospek {
 /** Aktivitas harian satu MO, indeks 0 = hari tertua dari jendela HARI_RITME. */
 export interface EffortHarian { kunjungan: number; penawaran: number; followUp: number; telepon: number }
 
+export const STATUS_RENEWAL = ['Belum Dihubungi', 'Dalam Follow Up', 'Berhasil Renewal', 'Tidak Renewal'] as const;
+export type StatusRenewal = (typeof STATUS_RENEWAL)[number];
+export const LINI_BISNIS = ['Kendaraan Bermotor', 'Properti', 'Kesehatan', 'Kecelakaan Diri', 'Pengangkutan', 'Rekayasa'] as const;
+
+/**
+ * Polis yang akan/baru habis masa berlakunya (SIMULASI — sumber data renewal belum ada).
+ * `nasabahId` SENGAJA berupa ID tersamar, bukan nama: nama nasabah tidak pernah masuk model data (Aturan Emas).
+ */
+export interface Renewal {
+  id: string; noPolis: string; nasabahId: string;
+  moId: string; cabangId: string; kanwilId: string; subKanal: SubKanal;
+  bisnis: (typeof LINI_BISNIS)[number]; status: StatusRenewal;
+  /** Tanggal ISO (yyyy-mm-dd). */
+  awal: string; akhir: string; nextFu: string | null;
+}
+
 export interface SumberData {
   kanwil: Kanwil[]; cabang: Cabang[]; mo: MO[]; prospek: Prospek[];
   effort: Map<string, EffortHarian[]>;
+  renewal: Renewal[];
 }
 
 export function mulberry32(seed: number) {
@@ -219,7 +236,39 @@ export function bangkitkanData(): SumberData {
   const mp = mo.find((m) => m.id === PERSONA.mo.id);
   if (mp) mp.kode = PERSONA.mo.nama;
 
-  return { kanwil, cabang, mo, prospek, effort };
+  // ── Renewal (SIMULASI) — PRNG terpisah supaya angka produksi/prospek/effort tidak berubah ──
+  const acakR = mulberry32(SEED + 7);
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const geser = (d: Date, hari: number) => { const x = new Date(d); x.setDate(x.getDate() + hari); return x; };
+  const kodeBisnis = ['MV', 'PR', 'HL', 'PA', 'MC', 'EN'];
+  const renewal: Renewal[] = [];
+  let noR = 0;
+  mo.forEach((m) => {
+    const n = Math.floor(acakR() * 5);
+    for (let i = 0; i < n; i++) {
+      const b = Math.floor(acakR() * LINI_BISNIS.length);
+      // Habis masa berlaku antara 30 hari lalu s.d. 90 hari ke depan dari tanggal acuan.
+      const akhir = geser(hariIni, Math.floor(acakR() * 120) - 30);
+      const awal = geser(akhir, -365);
+      const sisa = Math.round((akhir.getTime() - hariIni.getTime()) / 86400000);
+      const r = acakR();
+      const status: StatusRenewal = sisa < 0
+        ? (r < 0.55 ? 'Berhasil Renewal' : r < 0.8 ? 'Tidak Renewal' : 'Dalam Follow Up')
+        : (r < 0.35 ? 'Belum Dihubungi' : r < 0.8 ? 'Dalam Follow Up' : 'Berhasil Renewal');
+      const selesai = status === 'Berhasil Renewal' || status === 'Tidak Renewal';
+      noR++;
+      renewal.push({
+        id: `R${String(noR).padStart(5, '0')}`,
+        noPolis: `${kodeBisnis[b]}/${String(akhir.getFullYear() - 1).slice(2)}/${String(100000 + Math.floor(acakR() * 900000))}`,
+        nasabahId: `NSB-${String(Math.floor(acakR() * 1e6)).padStart(6, '0')}`,
+        moId: m.id, cabangId: m.cabangId, kanwilId: m.kanwilId, subKanal: m.subKanal,
+        bisnis: LINI_BISNIS[b], status, awal: iso(awal), akhir: iso(akhir),
+        nextFu: selesai ? null : iso(geser(hariIni, Math.floor(acakR() * 12) - 3)),
+      });
+    }
+  });
+
+  return { kanwil, cabang, mo, prospek, effort, renewal };
 }
 
 export const DATA: SumberData = bangkitkanData();

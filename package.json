@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "api": "node tools/api-akses.mjs",
     "link": "node tools/buat-link.mjs",
-    "kunci": "node -e \"import('./tools/lib-akses.mjs').then(m=>console.log('AKSES_KUNCI='+m.kunciBaru()))\""
+    "kunci": "node -e \"import('./tools/lib-akses.mjs').then(m=>console.log('AKSES_KUNCI='+m.kunciBaru()))\"",
+    "dummy": "node tools/buat-dummy.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",

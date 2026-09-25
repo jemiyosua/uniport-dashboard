@@ -42,3 +42,9 @@ export function tanggalPanjang(d: Date): string {
 export function tanggalPendek(d: Date): string {
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
 }
+
+/** "23 Sep 2026" dari tanggal ISO yyyy-mm-dd (dibaca sebagai tanggal lokal). */
+export function tanggalIso(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+}

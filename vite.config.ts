@@ -1,6 +1,41 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig, loadEnv, type Connect, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { viteSingleFile } from 'vite-plugin-singlefile';
+// @ts-ignore — modul Node biasa tanpa deklarasi tipe.
+import { ambilKunci, buatTautan, CONTOH_PORTAL, layaniDekrip } from './tools/lib-akses.mjs';
+
+/**
+ * Layanan akses portal di dalam dev/preview server, supaya tidak perlu `npm run api` terpisah.
+ * - POST /api/akses/dekrip → peran & unit dari token tautan (kunci tetap di sisi Node).
+ * - GET  /api/akses/contoh → tautan peragaan keempat portal. HANYA dev server: membuat tautan
+ *   berarti memberi akses, jadi endpoint ini tidak pernah ada di build maupun `npm run api`.
+ */
+function aksesPortal(): Plugin {
+  const pasang = (mw: Connect.Server, contoh: boolean) => {
+    // Kunci dibaca saat dipakai: tanpa AKSES_KUNCI server tetap jalan (mis. VITE_AKSES_TAUTAN=mati),
+    // hanya layanan aksesnya yang menjawab 503.
+    const denganKunci = (f: (kunci: Buffer, req: Connect.IncomingMessage, res: import('node:http').ServerResponse) => void): Connect.NextHandleFunction =>
+      (req, res) => {
+        let kunci: Buffer;
+        try { kunci = ambilKunci(); } catch (e) {
+          res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+          return res.end(JSON.stringify({ galat: (e as Error).message }));
+        }
+        f(kunci, req, res);
+      };
+    mw.use('/api/akses/dekrip', denganKunci((kunci, req, res) => layaniDekrip(req, res, kunci)));
+    if (contoh) mw.use('/api/akses/contoh', denganKunci((kunci, req, res) => {
+      const dasar = `http://${req.headers.host}/`;
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(CONTOH_PORTAL.map((c: { peran: string; unitId: string }) => ({ ...c, url: buatTautan(c.peran, c.unitId, 1, dasar, kunci) }))));
+    }));
+  };
+  return {
+    name: 'akses-portal',
+    configureServer: (server) => pasang(server.middlewares, true),
+    configurePreviewServer: (server) => pasang(server.middlewares, false),
+  };
+}
 
 // Satu berkas HTML mandiri: seluruh JS/CSS di-inline.
 export default defineConfig(({ mode }) => {
@@ -14,7 +49,7 @@ export default defineConfig(({ mode }) => {
   const dasarGo = go ? go.pathname.replace(/\/?matrix\/?$/, '').replace(/\/$/, '') : '';
 
   return {
-    plugins: [react(), viteSingleFile()],
+    plugins: [react(), viteSingleFile(), aksesPortal()],
     base: './',
     server: {
       // Port & alamat tetap supaya tautan akses (npm run link) selalu menunjuk ke tempat yang sama.
@@ -23,9 +58,6 @@ export default defineConfig(({ mode }) => {
       port: 5175,
       strictPort: true,
       proxy: {
-        // Layanan akses portal (npm run api).
-        // Regex (bukan awalan '/api') supaya tidak ikut menangkap '/api-go'.
-        '^/api/': { target: 'http://localhost:8787', changeOrigin: true },
         // Backend Go: /api-go/matrix/kanwils → {URL_GO tanpa "matrix/"}/matrix/kanwils.
         // Lewat proxy karena backend tidak mengirim header CORS.
         ...(go && {

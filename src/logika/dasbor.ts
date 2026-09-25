@@ -1,7 +1,7 @@
 // Merangkai seluruh olahan untuk satu cakupan + filter channel menjadi satu model tampilan.
 import {
   daftarPrioritas, hitungJatuhTempo, hitungProduksi, hitungProyeksi, ketergantunganOrangKunci,
-  kinerjaAnak, moDalam, namaCakupan, perluDitanyakan, prospekDalam, ritmeKerja, sebaranBeban,
+  kinerjaAnak, moDalam, namaCakupan, perluDitanyakan, prospekDalam, renewalDalam, ritmeKerja, sebaranBeban,
   labelPeriode, PERIODE_PENUH, type Cakupan, type FilterKanal, type Periode,
 } from './agregasi';
 import { susunInsight } from './insight';
@@ -21,6 +21,7 @@ export function hitungDasbor(cakupan: Cakupan, filter: FilterKanal, periode: Per
   const ditanyakan = perluDitanyakan(cakupan, filter, periode);
   const anak = kinerjaAnak(cakupan, filter, periode);
   const ritme = ritmeKerja(mos);
+  const renewal = renewalDalam(cakupan, filter);
   const labelAnak = LABEL_ANAK[cakupan.tingkat];
 
   const lewatHot = prioritas.filter((p) => p.status === 'Hot' && (p.sisaHari ?? 0) < 0);
@@ -31,7 +32,7 @@ export function hitungDasbor(cakupan: Cakupan, filter: FilterKanal, periode: Per
     konsentrasi, ditanyakan: ditanyakan.length, anak, labelAnak, labelPeriode: labelPeriode(periode),
   });
 
-  return { cakupan, periode, nama, mos, prospek, prod, prioritas, jt, proyeksi, beban, konsentrasi, ditanyakan, anak, ritme, labelAnak, insight };
+  return { cakupan, periode, nama, mos, prospek, prod, prioritas, jt, proyeksi, beban, konsentrasi, ditanyakan, anak, ritme, renewal, labelAnak, insight };
 }
 
 export type Dasbor = ReturnType<typeof hitungDasbor>;

@@ -12,29 +12,30 @@ npm run typecheck
 
 ## Akses portal lewat tautan terenkripsi
 
-> **Sementara dimatikan.** Secara bawaan URL dibuka seperti biasa dan langsung masuk sebagai portal Direksi. Untuk
-> menyalakannya lagi, isi `VITE_AKSES_TAUTAN=aktif` di `.env`, lalu jalankan `npm run api`.
-
 Tidak ada login/logout. Setiap pengguna membuka portal lewat tautan `…/?akses=<token>`. Frontend mengirim token ke
 API (`POST /api/akses/dekrip`), dan API men-decrypt token itu (AES-256-GCM, kunci `AKSES_KUNCI` di `.env`, **hanya di
 server**) menjadi `{ peran, unitId }`. Token yang diubah, palsu, atau kedaluwarsa ditolak dengan 401.
 
 ```bash
 cp .env.example .env && npm run kunci   # salin baris AKSES_KUNCI=… ke .env
-npm run api                             # layanan akses di :8787 (dev server meneruskan /api ke sini)
-npm run dev
+npm run dev                             # dev server sekaligus melayani /api/akses/dekrip
 npm run link                            # tautan contoh untuk keempat portal
 npm run link -- pemimpin-wilayah KW2 7  # tautan untuk unit tertentu, berlaku 7 hari
 ```
 
-| Portal | Dapat melihat |
-| --- | --- |
-| Direksi | Semua Kantor Wilayah, cabang, dan MO |
-| Pemimpin Wilayah | Cabang dan MO di wilayahnya |
-| Pimpinan Cabang | MO di cabangnya |
-| Marketing Officer | Data miliknya sendiri |
+Saat `npm run dev`, halaman tanpa tautan menampilkan tombol peragaan untuk keempat portal (hanya di dev server,
+tidak ikut ke build). `VITE_AKSES_TAUTAN=mati` membuka URL langsung sebagai portal Direksi, khusus pengembangan.
 
-`tools/api-akses.mjs` adalah contoh acuan untuk tim TI. Seluruh data contoh masih ikut di dalam bundle browser, jadi
+| Portal | `unitId` | Data yang bisa dibuka | Menu | Cari (⌘K) | Ekspor posisi |
+| --- | --- | --- | --- | --- | --- |
+| Direksi | `NAS` | Semua Kantor Wilayah, cabang, dan MO | Semua | Ya | Ya |
+| Pemimpin Wilayah | `KW1`… | Cabang dan MO di wilayahnya | Semua | Ya | Ya |
+| Pimpinan Cabang | `KW3-C04`… | MO di cabangnya | Semua | Ya | Ya |
+| Marketing Officer | `MO0561`… | Data miliknya sendiri | Dashboard, Perlu Tindakan, Renewal, Ritme Kerja, Detail | Tidak | Tidak |
+
+Cakupan data diatur `dalamAkar` (`src/logika/agregasi.ts`); menu dan fitur per peran diatur `src/logika/izin.ts`.
+Untuk build yang dibuka dari server lain, `npm run api` menjalankan layanan dekrip yang sama di `:8787`
+(`tools/api-akses.mjs`, contoh acuan untuk tim TI). Seluruh data contoh masih ikut di dalam bundle browser, jadi
 hierarki di atas baru ditegakkan di tampilan. Agar benar-benar aman, API produksi harus mengembalikan **hanya data dalam
 cakupan** hasil decrypt, bukan sekadar peran.
 
@@ -53,6 +54,10 @@ harus menyediakan jalur `/api-go` yang sama, atau set `VITE_API_GO` ke alamat ya
 Ketiga endpoint mengembalikan `{ success, data: [{ value, label }] }`.
 
 Klien ada di `src/api/matrix.ts`.
+
+**Data dummy (bawaan):** daftar wilayah, cabang, serta MO diambil dari `src/data/dummy.ts` tanpa memanggil backend.
+Untuk memakai API asli, isi `VITE_SUMBER_DATA=api` di `.env`. File itu dibangkitkan dari data contoh dengan `npm run dummy`, sehingga nama
+cabang dan MO cocok dengan angka dashboard.
 
 ## Data: CONTOH, bukan asli
 

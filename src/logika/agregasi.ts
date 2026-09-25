@@ -2,10 +2,10 @@
 // prioritas tindak lanjut, proyeksi target, dan risiko orang kunci.
 import {
   AMBANG_CABANG_KONSENTRASI, AMBANG_MO_TURUN, BOBOT_EFFORT, BOBOT_PRIORITAS, BOBOT_STATUS,
-  BULAN_P25, BULAN_P26, KELOMPOK_KANAL, NAMA_BULAN, NAMA_BULAN_PANJANG, PORSI_KONSENTRASI, STATUS_TERBUKA, TAHUN_BERJALAN,
+  BULAN_P25, BULAN_P26, KELOMPOK_KANAL, SEMUA_SUB_KANAL, NAMA_BULAN, NAMA_BULAN_PANJANG, PORSI_KONSENTRASI, STATUS_TERBUKA, TAHUN_BERJALAN,
   type Kelompok, type StatusProspek, type SubKanal,
 } from '../config/dashboard';
-import { DATA, type Cabang, type EffortHarian, type MO, type Prospek } from '../data/sumber';
+import { DATA, type Cabang, type EffortHarian, type MO, type Prospek, type Renewal } from '../data/sumber';
 
 // ── Cakupan & peran ─────────────────────────────────────────────────────────
 export type Tingkat = 'nasional' | 'kanwil' | 'cabang' | 'mo';
@@ -73,8 +73,12 @@ export function daftarkanMOApi(cabangId: string, daftar: { kodeApi: string; nama
   // ditampilkan: sebagian berisi alamat email pribadi (data pribadi, UU PDP).
   const hitung = new Map<string, number>(), urut = new Map<string, number>();
   daftar.forEach((x) => hitung.set(x.nama, (hitung.get(x.nama) ?? 0) + 1));
+  // MO yang sudah ada di data dashboard (value = id MO lokal, atau nama = kode MO lokal di cabang
+  // yang sama — mis. data dummy) memakai id lokal supaya angkanya tampil.
+  const lokal = DATA.mo.filter((m) => m.cabangId === cabangId);
   return daftar.map((x) => {
-    const id = `API:${cabangId}:${x.kodeApi}`;
+    const cocok = lokal.find((m) => m.id === x.kodeApi) ?? lokal.find((m) => m.kode === x.nama);
+    const id = cocok?.id ?? `API:${cabangId}:${x.kodeApi}`;
     const ke = (urut.get(x.nama) ?? 0) + 1;
     urut.set(x.nama, ke);
     const nama = (hitung.get(x.nama) ?? 0) > 1 ? `${x.nama} (${ke})` : x.nama;
@@ -160,16 +164,44 @@ export function anakCakupan(c: Cakupan): Cakupan[] {
 }
 
 // ── Filter channel ──────────────────────────────────────────────────────────
-/** Sub-channel diberi awalan `sub:` karena ada sub-channel yang namanya sama dengan grupnya (Direct). */
-export type FilterKanal = 'Semua' | Kelompok | `sub:${SubKanal}`;
-export const labelFilter = (f: FilterKanal) => (f.startsWith('sub:') ? f.slice(4) : f === 'Semua' ? 'Semua' : `Semua ${f}`);
+/**
+ * Filter channel = daftar sub-channel yang aktif (pilihan ganda). Daftar kosong = "Semua".
+ * "Semua Direct" / "Semua Captive" menyalakan seluruh sub-channel grupnya sekaligus.
+ */
+export type FilterKanal = readonly SubKanal[];
+export const FILTER_SEMUA: FilterKanal = [];
 export const kelompokDari = (s: SubKanal): Kelompok =>
   (KELOMPOK_KANAL.Direct as readonly string[]).includes(s) ? 'Direct' : 'Captive';
 
+/** Urutkan sesuai SEMUA_SUB_KANAL; bila semua sub-channel aktif, kembalikan ke "Semua". */
+function rapikanFilter(daftar: Iterable<SubKanal>): FilterKanal {
+  const set = new Set(daftar);
+  const urut = SEMUA_SUB_KANAL.filter((s) => set.has(s));
+  return urut.length === SEMUA_SUB_KANAL.length ? FILTER_SEMUA : urut;
+}
+/** true bila semua sub-channel grup ini aktif (tidak berlaku saat "Semua"). */
+export const grupAktif = (f: FilterKanal, k: Kelompok) => f.length > 0 && KELOMPOK_KANAL[k].every((s) => f.includes(s));
+/** Tepat satu grup saja yang aktif (untuk ubin Direct/Captive di Ringkasan). */
+export const hanyaGrup = (f: FilterKanal, k: Kelompok) => grupAktif(f, k) && f.length === KELOMPOK_KANAL[k].length;
+/** Klik "Semua Direct"/"Semua Captive": nyalakan seluruh anggota grup, atau matikan bila sudah menyala semua. */
+export function alihGrup(f: FilterKanal, k: Kelompok): FilterKanal {
+  const anggota = KELOMPOK_KANAL[k] as readonly SubKanal[];
+  if (grupAktif(f, k)) return rapikanFilter(f.filter((s) => !anggota.includes(s)));
+  return rapikanFilter([...f, ...anggota]);
+}
+/** Klik satu sub-channel: nyalakan/matikan. Dari "Semua", klik pertama memilih sub-channel itu saja. */
+export function alihSubKanal(f: FilterKanal, s: SubKanal): FilterKanal {
+  return rapikanFilter(f.includes(s) ? f.filter((x) => x !== s) : [...f, s]);
+}
+export function labelFilter(f: FilterKanal): string {
+  if (!f.length) return 'Semua';
+  const grup = (['Direct', 'Captive'] as const).filter((k) => grupAktif(f, k));
+  const sisa = f.filter((s) => !grup.includes(kelompokDari(s)));
+  return [...grup.map((k) => `Semua ${k}`), ...sisa].join(', ');
+}
+
 function lolosKanal(s: SubKanal, f: FilterKanal): boolean {
-  if (f === 'Semua') return true;
-  if (f === 'Direct' || f === 'Captive') return kelompokDari(s) === f;
-  return `sub:${s}` === f;
+  return f.length === 0 || f.includes(s);
 }
 
 function dalamCakupan(x: { kanwilId: string; cabangId: string; id?: string; moId?: string }, c: Cakupan): boolean {
@@ -186,6 +218,14 @@ export function moDalam(c: Cakupan, f: FilterKanal): MO[] {
 }
 export function prospekDalam(c: Cakupan, f: FilterKanal): Prospek[] {
   return DATA.prospek.filter((p) => dalamCakupan(p, c) && lolosKanal(p.subKanal, f));
+}
+
+export interface BarisRenewal extends Renewal { cabangNama: string; moNama: string }
+/** Polis renewal dalam cakupan & filter channel (SIMULASI). */
+export function renewalDalam(c: Cakupan, f: FilterKanal): BarisRenewal[] {
+  return DATA.renewal
+    .filter((r) => dalamCakupan(r, c) && lolosKanal(r.subKanal, f))
+    .map((r) => ({ ...r, cabangNama: petaCabang.get(r.cabangId)?.nama ?? r.cabangId, moNama: petaMO.get(r.moId)?.kode ?? r.moId }));
 }
 
 // ── Periode (filter tanggal) ────────────────────────────────────────────────
