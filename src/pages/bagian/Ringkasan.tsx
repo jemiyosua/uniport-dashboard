@@ -3,7 +3,8 @@ import { BULAN_P26, NAMA_BULAN, NAMA_BULAN_PANJANG, TAHUN_BERJALAN, TAHUN_LALU }
 import { BatangBulanan, Donut } from '../../components/grafik/Grafik';
 import { ChipDelta, Kartu, KepalaKartu, Progres } from '../../components/Kartu';
 import { Ikon } from '../../components/Ikon';
-import { labelPeriode, periodePenuh, type FilterKanal } from '../../logika/agregasi';
+import { FILTER_SEMUA, hanyaGrup, labelPeriode, periodePenuh, type FilterKanal } from '../../logika/agregasi';
+import { KELOMPOK_KANAL } from '../../config/dashboard';
 import type { Dasbor } from '../../logika/dasbor';
 import { bilangan, delta, persen, rp, rpMiliar } from '../../logika/format';
 
@@ -50,7 +51,7 @@ export function Ringkasan({ d, filter, onFilter, onKe, onEkspor, judulHero = 'Pr
 
         <div className="sub-kepala">
           <h4>Komposisi Channel</h4>
-          {filter !== 'Semua' && <button type="button" className="tombol kecil sekunder" onClick={() => onFilter('Semua')}><Ikon nama="x" ukuran={14} /> Semua channel</button>}
+          {filter.length > 0 && <button type="button" className="tombol kecil sekunder" onClick={() => onFilter(FILTER_SEMUA)}><Ikon nama="x" ukuran={14} /> Semua channel</button>}
         </div>
         <div className="kanal-baris">
           <Donut
@@ -62,7 +63,7 @@ export function Ringkasan({ d, filter, onFilter, onKe, onEkspor, judulHero = 'Pr
           />
           <div className="ubin-grid">
             {ubin.map((u) => (
-              <button type="button" key={u.k} className={`ubin ${filter === u.k ? 'aktif' : ''}`} onClick={() => onFilter(filter === u.k ? 'Semua' : u.k)} aria-pressed={filter === u.k}>
+              <button type="button" key={u.k} className={`ubin ${hanyaGrup(filter, u.k) ? 'aktif' : ''}`} onClick={() => onFilter(hanyaGrup(filter, u.k) ? FILTER_SEMUA : [...KELOMPOK_KANAL[u.k]])} aria-pressed={hanyaGrup(filter, u.k)}>
                 <span className="ubin-kepala"><i className="titik" style={{ background: u.k === 'Direct' ? 'var(--seri-1)' : 'var(--seri-2)' }} />{u.k}<b>{persen(u.porsi, 0)}</b></span>
                 <strong>{rp(u.nilai)}</strong>
                 <span className={`kecil ${u.tumbuh < 0 ? 'teks-turun' : 'teks-naik'}`}>{delta(u.tumbuh)} laju/bulan</span>

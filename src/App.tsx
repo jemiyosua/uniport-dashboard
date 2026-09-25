@@ -8,12 +8,13 @@ import { PilihPeriode } from './components/PilihPeriode';
 import { Sidebar, type GrupMenu } from './components/Sidebar';
 import { Topbar } from './components/Topbar';
 import {
-  cabangAdaData, dalamAkar, jalur, kodeCabangApi, kodeMOApi, moAdaData, labelFilter, posisiCakupan, wilayahAdaData, labelPeriode, namaCakupan, PERAN, PERIODE_PENUH, type Cakupan, type FilterKanal, type Periode,
+  cabangAdaData, dalamAkar, jalur, kodeCabangApi, kodeMOApi, moAdaData, labelFilter, alihGrup, alihSubKanal, FILTER_SEMUA, grupAktif, posisiCakupan, wilayahAdaData, labelPeriode, namaCakupan, PERAN, PERIODE_PENUH, type Cakupan, type FilterKanal, type Periode,
 } from './logika/agregasi';
 import type { Akses } from './logika/akses';
 import { eksporDaftarKerja, eksporPosisi } from './logika/csv';
 import { hitungDasbor } from './logika/dasbor';
 import { tanggalPanjang } from './logika/format';
+import { renewalMendesak } from './pages/bagian/Renewal';
 import { Tampilan } from './pages/Tampilan';
 
 type Tema = 'terang' | 'gelap';
@@ -29,6 +30,7 @@ const simpan = {
 const JUDUL_HALAMAN: Record<string, string> = {
 	ringkasan: 'Ringkasan',
 	tindakan: 'Perlu Tindakan',
+	renewal: 'Renewal',
 	proyeksi: 'Proyeksi Pencapaian Target',
 	kinerja: 'Kinerja',
 	insight: 'AI Insight', 'orang-kunci': 'Ketergantungan Orang Kunci',
@@ -36,13 +38,9 @@ const JUDUL_HALAMAN: Record<string, string> = {
 	ritme: 'Ritme Kerja',
 	detail: 'Detail & Latar Belakang',
 };
-const HALAMAN = ['ringkasan', 'tindakan', 'proyeksi', 'kinerja', 'ritme', 'insight', 'orang-kunci', 'ditanyakan', 'detail'];
+const HALAMAN = ['ringkasan', 'tindakan', 'renewal', 'proyeksi', 'kinerja', 'ritme', 'insight', 'orang-kunci', 'ditanyakan', 'detail'];
 const halamanDariHash = () => window.location.hash.replace(/^#\/?/, '') || 'ringkasan';
 
-const PILIHAN_FILTER: FilterKanal[] = [
-  'Semua', 'Direct', ...KELOMPOK_KANAL.Direct.map((s) => `sub:${s}` as const),
-  'Captive', ...KELOMPOK_KANAL.Captive.map((s) => `sub:${s}` as const),
-];
 
 export default function App({ akses }: { akses: Akses }) {
   // Tema dipilih manual, tidak mengikuti setelan sistem (kondisi layar ruang rapat beragam).
@@ -50,7 +48,7 @@ export default function App({ akses }: { akses: Akses }) {
   // Peran & unit ditentukan tautan akses (hasil decrypt API) — tidak bisa diganti dari tampilan.
   const { peran, akar } = akses;
   const [cakupan, setCakupan] = useState<Cakupan>(akar);
-  const [filter, setFilter] = useState<FilterKanal>('Semua');
+  const [filter, setFilter] = useState<FilterKanal>(FILTER_SEMUA);
   const [ciut, setCiut] = useState(() => simpan.baca('uniport-ciut') === '1');
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [halamanHash, setHalamanHash] = useState(halamanDariHash);
@@ -77,7 +75,7 @@ export default function App({ akses }: { akses: Akses }) {
       kanwil: pos.kanwilId ? kodeKanwilApi(pos.kanwilId) : undefined,
       cabang: pos.cabangId ? kodeCabangApi(pos.cabangId) ?? pos.cabangId : undefined,
       mo: pos.moId ? kodeMOApi(pos.moId) ?? pos.moId : undefined,
-      channel: filter === 'Semua' ? undefined : labelFilter(filter).replace(/^Semua /, ''),
+      channel: filter.length ? [...filter] : undefined,
       bulanDari: periode.dari + 1, bulanSampai: periode.sampai + 1, tahun: TAHUN_BERJALAN,
     };
   }, [cakupan, filter, periode]);
@@ -112,6 +110,7 @@ export default function App({ akses }: { akses: Akses }) {
     { judul: 'Menu utama', item: [
       { id: 'ringkasan', label: 'Dashboard', ikon: 'grid' },
       { id: 'tindakan', label: 'Perlu Tindakan', ikon: 'alert', lencana: mendesak },
+      { id: 'renewal', label: 'Renewal', ikon: 'refresh', lencana: renewalMendesak(d) },
       { id: 'proyeksi', label: 'Proyeksi Target', ikon: 'target' },
       { id: 'kinerja', label: 'Kinerja', ikon: 'chart' },
       { id: 'ritme', label: 'Ritme Kerja', ikon: 'activity' },
@@ -161,7 +160,7 @@ export default function App({ akses }: { akses: Akses }) {
               <p className="teks-redup">
                 {halamanDetail ? 'Sumber data, koreksi periode, asumsi, dan kepatuhan.' : <>
                   Posisi {d.nama} · produksi {labelPeriode(periode, true)}
-                  {filter !== 'Semua' && <> · channel <strong>{labelFilter(filter)}</strong></>}
+                  {filter.length > 0 && <> · channel <strong>{labelFilter(filter)}</strong></>}
                 </>}
               </p>
             </div>
@@ -188,12 +187,23 @@ export default function App({ akses }: { akses: Akses }) {
           {!halamanDetail && (
             <div className="filter-kanal" role="toolbar" aria-label="Filter channel">
               <span className="teks-redup"><Ikon nama="filter" ukuran={16} /> Channel</span>
-              {PILIHAN_FILTER.map((f) => (
-                <button
-                  type="button" key={f} aria-pressed={filter === f}
-                  className={`chip-filter ${filter === f ? 'aktif' : ''} ${f === 'Direct' || f === 'Captive' || f === 'Semua' ? 'induk' : ''}`}
-                  onClick={() => setFilter(f)}
-                >{labelFilter(f)}</button>
+              <button
+                type="button" aria-pressed={filter.length === 0}
+                className={`chip-filter induk ${filter.length === 0 ? 'aktif' : ''}`} onClick={() => setFilter(FILTER_SEMUA)}
+              >Semua</button>
+              {(['Direct', 'Captive'] as const).map((k) => (
+                <span className="grup-kanal" key={k} role="group" aria-label={`Channel ${k}`}>
+                  <button
+                    type="button" aria-pressed={grupAktif(filter, k)}
+                    className={`chip-filter induk ${grupAktif(filter, k) ? 'aktif' : ''}`} onClick={() => setFilter(alihGrup(filter, k))}
+                  >Semua {k}</button>
+                  {KELOMPOK_KANAL[k].map((s) => (
+                    <button
+                      type="button" key={s} aria-pressed={filter.includes(s)}
+                      className={`chip-filter sub ${filter.includes(s) ? 'aktif' : ''}`} onClick={() => setFilter(alihSubKanal(filter, s))}
+                    >{filter.includes(s) && <Ikon nama="check" ukuran={14} />}{s}</button>
+                  ))}
+                </span>
               ))}
             </div>
           )}

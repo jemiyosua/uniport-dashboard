@@ -647,3 +647,54 @@ button.avatar:hover, button.avatar[aria-expanded='true'] { box-shadow: 0 0 0 2px
 .daftar-cari .kosong-cari { cursor: default; color: var(--redup); justify-content: center; }
 .jumlah-cari { font-size: 12.5px; color: var(--redup); padding: 2px 10px 0; margin: 0; }
 @media (max-width: 560px) { .pemicu-cari { max-width: none; } .panel-cari { width: 100%; } }
+
+/* ── DataTable (cari, filter kolom, urut, paging) ────────────────────────── */
+.datatable { display: grid; gap: 12px; }
+.dt-alat { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.dt-cari {
+  flex: 1 1 240px; max-width: 360px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px 0 12px;
+  border: 1px solid var(--garis-kuat); border-radius: 10px; background: var(--permukaan); color: var(--redup);
+}
+.dt-cari:focus-within { border-color: var(--seri-1); box-shadow: 0 0 0 3px var(--merek-lembut); }
+.dt-cari input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font-size: 15px; color: var(--tinta); }
+.dt-cari button { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--redup); display: grid; place-items: center; }
+.dt-cari button:hover { background: var(--permukaan-2); color: var(--tinta); }
+.dt-saring select, .dt-ukuran select { height: 40px; font-size: 14px; font-weight: 500; border-radius: 10px; max-width: 240px; }
+.dt-saring select { padding-right: 32px; }
+.dt-ikon-pasif { opacity: 0.35; }
+.tabel td.bungkus { white-space: normal; min-width: 160px; }
+.dt-kosong { text-align: center; color: var(--redup); padding: 24px 14px !important; white-space: normal; }
+.dt-kaki { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 14px; }
+.dt-ukuran { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+.dt-ukuran select { height: 36px; padding: 0 30px 0 12px; background-position: calc(100% - 16px) 15px, calc(100% - 11px) 15px; }
+.dt-halaman { display: inline-flex; align-items: center; gap: 4px; }
+.dt-halaman button {
+  min-width: 38px; height: 38px; padding: 0 8px; border-radius: 10px; border: 1px solid var(--garis);
+  background: var(--permukaan); font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; display: grid; place-items: center;
+}
+.dt-halaman button:hover:not(:disabled) { border-color: var(--garis-kuat); }
+.dt-halaman button.aktif { background: var(--merek); border-color: var(--merek); color: #fff; }
+.dt-halaman button:disabled { opacity: 0.4; cursor: not-allowed; }
+.dt-elipsis { min-width: 24px; text-align: center; color: var(--redup); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (max-width: 560px) { .dt-ukuran { margin-left: 0; } .dt-cari { max-width: none; } }
+
+/* ── Renewal ──────────────────────────────────────────────────────────────── */
+.pil-belum-dihubungi { background: var(--waspada-latar); color: var(--waspada-tinta); }
+.pil-dalam-follow-up { background: var(--info-latar); color: var(--info-tinta); }
+.pil-berhasil-renewal { background: var(--naik-latar); color: var(--naik-tinta); }
+.pil-tidak-renewal { background: var(--turun-latar); color: var(--turun-tinta); }
+.pil { white-space: nowrap; }
+.sel-dua { display: inline-grid; line-height: 1.3; }
+.sel-dua small { font-size: 12.5px; }
+
+/* Grup channel: "Semua Direct" + anggotanya tetap berdekatan saat baris membungkus. */
+.grup-kanal { display: inline-flex; flex-wrap: wrap; gap: 8px; padding-left: 10px; margin-left: 2px; border-left: 1px solid var(--garis); }
+
+/* Kategori (Semua / Semua Direct / Semua Captive) aktif = hijau pekat;
+   sub-channel terpilih = hijau muda + garis tepi + centang (tidak mengandalkan warna saja). */
+.chip-filter.sub { display: inline-flex; align-items: center; gap: 6px; }
+.chip-filter.sub.aktif {
+  background: var(--merek-lembut); color: var(--merek-tinta); border-color: var(--seri-1); font-weight: 600;
+}
+.chip-filter.sub.aktif:hover { border-color: var(--merek-tinta); }

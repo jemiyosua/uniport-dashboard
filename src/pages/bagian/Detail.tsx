@@ -1,4 +1,5 @@
 import { BOBOT_EFFORT, SLA_STATUS } from '../../config/dashboard';
+import { DataTable } from '../../components/DataTable';
 import { Kartu } from '../../components/Kartu';
 
 const SUMBER = [
@@ -7,6 +8,7 @@ const SUMBER = [
   ['Matrix Distribution (Pega ASMPro)', 'Prospek, status, jatuh tempo, estimasi premi, aktivitas effort', 'Simulasi — ekspor belum tersedia'],
   ['HCQ / Organization Master Data Area', 'Cabang dan Kantor Wilayah; MO dan Pimpinan Cabang aktif', 'Belum terhubung — kode unit contoh'],
   ['Uniport', 'Login dan peran', 'Belum diimplementasi (single sign-on)'],
+  ['Renewal polis', 'Status renewal, periode polis, jadwal follow up berikutnya', 'Simulasi — sumber data belum ditentukan'],
   ['Olahan dashboard', 'Capaian, proyeksi, kecukupan pipeline, tindakan disarankan, AI Insight', 'Dihitung dari data di atas'],
 ];
 
@@ -16,12 +18,14 @@ export function DetailLatar() {
       <Kartu>
           <div className="detail-isi">
             <h3>Sumber data</h3>
-            <div className="tabel-bungkus">
-              <table className="tabel">
-                <thead><tr><th>Sistem asal</th><th>Data yang diambil</th><th>Status di prototipe ini</th></tr></thead>
-                <tbody>{SUMBER.map((r) => <tr key={r[0]}><td><strong>{r[0]}</strong></td><td>{r[1]}</td><td>{r[2]}</td></tr>)}</tbody>
-              </table>
-            </div>
+            <DataTable
+              data={SUMBER} kunciBaris={(r) => r[0]} placeholderCari="Cari sistem atau data…"
+              kolom={[
+                { kunci: 'sistem', judul: 'Sistem asal', nilai: (r) => r[0], isi: (r) => <strong>{r[0]}</strong>, bungkus: true },
+                { kunci: 'data', judul: 'Data yang diambil', nilai: (r) => r[1], isi: (r) => r[1], bungkus: true },
+                { kunci: 'status', judul: 'Status', nilai: (r) => r[2], isi: (r) => r[2], saring: true, bungkus: true },
+              ]}
+            />
             <p>
               <strong>Data pada build ini adalah data contoh.</strong> Rincian cabang dan MO dibangkitkan dengan PRNG ber-seed; hanya total
               nasional yang dijangkarkan ke angka PRD (NWP 2025 Rp 583,0 miliar, Jan–Jul 2026 Rp 298,8 miliar, target 2026 Rp 740,0 miliar).

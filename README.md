@@ -54,6 +54,10 @@ Ketiga endpoint mengembalikan `{ success, data: [{ value, label }] }`.
 
 Klien ada di `src/api/matrix.ts`.
 
+**Tanpa API (data dummy):** isi `VITE_SUMBER_DATA=dummy` di `.env`, dan daftar wilayah, cabang, serta MO akan diambil dari
+`src/data/dummy.ts` tanpa memanggil backend. File itu dibangkitkan dari data contoh dengan `npm run dummy`, sehingga nama
+cabang dan MO cocok dengan angka dashboard.
+
 ## Data: CONTOH, bukan asli
 
 Repo ini belum memuat ekspor eReport, HCQ, eTarget, atau Matrix Distribution. `src/data/sumber.ts` membangkitkan

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { DataTable, type Kolom } from '../../components/DataTable';
 import { TAHUN_LALU } from '../../config/dashboard';
 import { Ikon } from '../../components/Ikon';
 import { Bagian, ChipDelta, Kartu, KepalaKartu, Progres } from '../../components/Kartu';
@@ -6,20 +7,23 @@ import { labelPeriode, periodePenuh, type BarisKinerja, type Cakupan } from '../
 import type { Dasbor } from '../../logika/dasbor';
 import { delta, persen, rp } from '../../logika/format';
 
-type Kunci = 'nwp26' | 'capaianBerjalan' | 'pertumbuhanLaju' | 'profit';
+type BarisPeringkat = BarisKinerja & { peringkat: number };
+const angka = (n: number) => (isFinite(n) ? n : null);
 
 export function Kinerja({ d, onBuka, onEksporPosisi }: { d: Dasbor; onBuka: (c: Cakupan) => void; onEksporPosisi: () => void }) {
-  const [urut, setUrut] = useState<Kunci>('nwp26');
-  const [semua, setSemua] = useState(false);
-  const baris: BarisKinerja[] = [...d.anak].sort((a, b) => (b.prod[urut] || -Infinity) - (a.prod[urut] || -Infinity));
-  const tampil = semua ? baris : baris.slice(0, 10);
-  const th = (k: Kunci, label: string) => (
-    <th className="kanan">
-      <button type="button" className={`urut ${urut === k ? 'aktif' : ''}`} onClick={() => setUrut(k)} aria-pressed={urut === k}>
-        {label}{urut === k && <Ikon nama="arrowDown" ukuran={14} />}
-      </button>
-    </th>
-  );
+  // Peringkat tetap = urutan NWP periode; tabel bisa diurutkan ulang per kolom.
+  const baris = useMemo<BarisPeringkat[]>(() => d.anak.map((b, i) => ({ ...b, peringkat: i + 1 })), [d.anak]);
+  const kolom: Kolom<BarisPeringkat>[] = [
+    { kunci: 'peringkat', judul: '#', isi: (b) => <span className="teks-redup">{b.peringkat}</span>, nilai: (b) => b.peringkat },
+    { kunci: 'unit', judul: 'Unit', nilai: (b) => b.nama, isi: (b) => <button type="button" className="tautan" onClick={() => onBuka(b.unit)}>{b.nama}</button> },
+    { kunci: 'nwp', judul: `NWP ${labelPeriode(d.periode).replace(/ \d{4}$/, '')}`, isi: (b) => rp(b.prod.nwp26), nilai: (b) => b.prod.nwp26, kanan: true },
+    {
+      kunci: 'capaian', judul: 'Capaian berjalan', kanan: true, nilai: (b) => angka(b.prod.capaianBerjalan),
+      isi: (b) => <div className="sel-progres kanan"><Progres nilai={b.prod.capaianBerjalan} label={`Capaian ${persen(b.prod.capaianBerjalan, 0)}`} /><strong>{persen(b.prod.capaianBerjalan, 0)}</strong></div>,
+    },
+    { kunci: 'laju', judul: `Laju vs ${TAHUN_LALU}`, kanan: true, nilai: (b) => angka(b.prod.pertumbuhanLaju), isi: (b) => <ChipDelta nilai={b.prod.pertumbuhanLaju} teks={delta(b.prod.pertumbuhanLaju)} /> },
+    { kunci: 'profit', judul: 'Profit', kanan: true, isi: (b) => rp(b.prod.profit), nilai: (b) => b.prod.profit },
+  ];
   const kel = d.prod.perKelompok;
 
   return (
@@ -35,36 +39,10 @@ export function Kinerja({ d, onBuka, onEksporPosisi }: { d: Dasbor; onBuka: (c: 
               Tidak ada unit di bawah {d.nama} untuk diperingkat. Pilih cabang atau wilayah di filter untuk membandingkan unit.
             </p>
           ) : (
-          <div className="tabel-bungkus">
-            <table className="tabel">
-              <thead>
-                <tr>
-                  <th>#</th><th>Unit</th>
-                  {th('nwp26', `NWP ${labelPeriode(d.periode).replace(/ \d{4}$/, '')}`)}
-                  {th('capaianBerjalan', 'Capaian berjalan')}
-                  {th('pertumbuhanLaju', `Laju vs ${TAHUN_LALU}`)}
-                  {th('profit', 'Profit')}
-                </tr>
-              </thead>
-              <tbody>
-                {tampil.map((b, i) => (
-                  <tr key={b.unit.id}>
-                    <td className="teks-redup">{i + 1}</td>
-                    <td><button type="button" className="tautan" onClick={() => onBuka(b.unit)}>{b.nama}</button></td>
-                    <td className="kanan">{rp(b.prod.nwp26)}</td>
-                    <td className="kanan"><div className="sel-progres kanan"><Progres nilai={b.prod.capaianBerjalan} label={`Capaian ${persen(b.prod.capaianBerjalan, 0)}`} /><strong>{persen(b.prod.capaianBerjalan, 0)}</strong></div></td>
-                    <td className="kanan"><ChipDelta nilai={b.prod.pertumbuhanLaju} teks={delta(b.prod.pertumbuhanLaju)} /></td>
-                    <td className="kanan">{rp(b.prod.profit)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          )}
-          {baris.length > 10 && (
-            <button type="button" className="tombol sekunder lebar" onClick={() => setSemua(!semua)}>
-              {semua ? 'Tampilkan 10 teratas' : `Tampilkan semua ${baris.length} ${d.labelAnak}`}
-            </button>
+            <DataTable
+              data={baris} kolom={kolom} kunciBaris={(b) => b.unit.id} urutAwal={{ kunci: 'peringkat', arah: 'naik' }}
+              placeholderCari={`Cari ${d.labelAnak.toLowerCase()}…`}
+            />
           )}
         </Kartu>
         <Kartu className="kartu-banding">

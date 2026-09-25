@@ -5,6 +5,7 @@ import { AIInsight } from './bagian/Insight';
 import { Kinerja } from './bagian/Kinerja';
 import { OrangKunci, PerluDitanyakan } from './bagian/Orang';
 import { ProyeksiTarget } from './bagian/Proyeksi';
+import { RenewalPolis } from './bagian/Renewal';
 import { Ringkasan } from './bagian/Ringkasan';
 import { RitmeKerja } from './bagian/Ritme';
 import { PerluTindakan } from './bagian/Tindakan';
@@ -22,6 +23,7 @@ export interface PropsTampilan {
 export function Tampilan(p: PropsTampilan) {
   switch (p.halaman) {
     case 'tindakan': return <PerluTindakan d={p.d} onBuka={p.onBuka} onEkspor={p.onEkspor} />;
+    case 'renewal': return <RenewalPolis d={p.d} />;
     case 'proyeksi': return <ProyeksiTarget d={p.d} />;
     case 'kinerja': return <Kinerja d={p.d} onBuka={p.onBuka} onEksporPosisi={p.onEksporPosisi} />;
     case 'ritme': return <RitmeKerja d={p.d} />;

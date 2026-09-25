@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
+import { DataTable, type Kolom } from '../../components/DataTable';
 import { BatangMendatar } from '../../components/grafik/Grafik';
 import { Ikon } from '../../components/Ikon';
 import { Bagian, Kartu, KepalaKartu, PilStatus } from '../../components/Kartu';
@@ -13,47 +14,32 @@ function teksJatuhTempo(sisa: number | null) {
   return `${sisa} hari lagi`;
 }
 
-export function TabelPrioritas({ daftar, tampilMO, tampilCabang, onBuka, batas = 8 }: {
-  daftar: ProspekPrioritas[]; tampilMO: boolean; tampilCabang: boolean; onBuka?: (c: Cakupan) => void; batas?: number;
+type BarisPrioritas = ProspekPrioritas & { peringkat: number };
+
+export function TabelPrioritas({ daftar, tampilMO, tampilCabang, onBuka }: {
+  daftar: ProspekPrioritas[]; tampilMO: boolean; tampilCabang: boolean; onBuka?: (c: Cakupan) => void;
 }) {
-  const [semua, setSemua] = useState(false);
-  const baris = semua ? daftar.slice(0, 100) : daftar.slice(0, batas);
-  if (!daftar.length) return <p className="kosong-isi">Tidak ada prospek terbuka pada cakupan & filter ini.</p>;
+  // Peringkat = urutan skor prioritas asli, tetap terbaca meski tabel diurutkan ulang.
+  const baris = useMemo<BarisPrioritas[]>(() => daftar.map((p, i) => ({ ...p, peringkat: i + 1 })), [daftar]);
+  const kolom: Kolom<BarisPrioritas>[] = [
+    { kunci: 'peringkat', judul: '#', isi: (p) => <span className="teks-redup">{p.peringkat}</span>, nilai: (p) => p.peringkat },
+    { kunci: 'id', judul: 'ID Prospek', isi: (p) => <span className="mono">{p.id}</span>, nilai: (p) => p.id },
+    { kunci: 'status', judul: 'Status', isi: (p) => <PilStatus status={p.status} />, nilai: (p) => p.status, saring: true },
+    { kunci: 'tahap', judul: 'Tahap', isi: (p) => p.tahap, nilai: (p) => p.tahap, saring: true },
+    { kunci: 'premi', judul: 'Estimasi premi', isi: (p) => rp(p.premi), nilai: (p) => p.premi, kanan: true },
+    { kunci: 'jt', judul: 'Batas tindak lanjut', isi: (p) => teksJatuhTempo(p.sisaHari), nilai: (p) => p.sisaHari },
+    ...(tampilMO ? [{
+      kunci: 'mo', judul: 'MO', nilai: (p: BarisPrioritas) => p.moKode,
+      isi: (p: BarisPrioritas) => onBuka ? <button type="button" className="tautan" onClick={() => onBuka({ tingkat: 'mo', id: p.moId })}>{p.moKode}</button> : p.moKode,
+    }] : []),
+    ...(tampilCabang ? [{ kunci: 'cabang', judul: 'Cabang', isi: (p: BarisPrioritas) => p.cabangNama, nilai: (p: BarisPrioritas) => p.cabangNama, saring: true }] : []),
+    { kunci: 'skor', judul: 'Skor', isi: (p) => <strong>{p.skor.toFixed(1).replace('.', ',')}</strong>, nilai: (p) => p.skor, kanan: true },
+  ];
   return (
-    <>
-      <div className="tabel-bungkus">
-        <table className="tabel">
-          <thead>
-            <tr>
-              <th>#</th><th>ID Prospek</th><th>Status</th><th>Tahap</th>
-              <th className="kanan">Estimasi premi</th><th>Batas tindak lanjut</th>
-              {tampilMO && <th>MO</th>}{tampilCabang && <th>Cabang</th>}
-              <th className="kanan">Skor</th>
-            </tr>
-          </thead>
-          <tbody>
-            {baris.map((p, i) => (
-              <tr key={p.id}>
-                <td className="teks-redup">{i + 1}</td>
-                <td className="mono">{p.id}</td>
-                <td><PilStatus status={p.status} /></td>
-                <td>{p.tahap}</td>
-                <td className="kanan">{rp(p.premi)}</td>
-                <td>{teksJatuhTempo(p.sisaHari)}</td>
-                {tampilMO && <td>{onBuka ? <button type="button" className="tautan" onClick={() => onBuka({ tingkat: 'mo', id: p.moId })}>{p.moKode}</button> : p.moKode}</td>}
-                {tampilCabang && <td>{p.cabangNama}</td>}
-                <td className="kanan"><strong>{p.skor.toFixed(1).replace('.', ',')}</strong></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {daftar.length > batas && (
-        <button type="button" className="tombol sekunder lebar" onClick={() => setSemua(!semua)}>
-          {semua ? 'Tampilkan lebih sedikit' : `Tampilkan ${Math.min(100, daftar.length)} teratas dari ${bilangan(daftar.length)}`}
-        </button>
-      )}
-    </>
+    <DataTable
+      data={baris} kolom={kolom} kunciBaris={(p) => p.id} urutAwal={{ kunci: 'peringkat', arah: 'naik' }}
+      placeholderCari="Cari ID, tahap, MO, cabang…" pesanKosong="Tidak ada prospek terbuka pada cakupan & filter ini."
+    />
   );
 }
 
